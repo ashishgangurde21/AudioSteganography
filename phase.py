@@ -2,38 +2,30 @@ import numpy as np
 import scipy.io.wavfile as wavfile
 import librosa
 
+import numpy as np
+
 def encode_phase(audio_file, message):
-    # Load the audio file
-    rate, data = wavfile.read(audio_file)
-
-    # Convert the message to binary
-    binary_message = ''.join(format(ord(c), '08b') for c in message)
-
-    # Ensure that the message is no longer than the audio signal
-    if len(binary_message) > data.shape[0]:
-        raise ValueError('Message is too long for audio file')
-
-    # Convert the audio signal to the frequency domain
-    data_freq = np.fft.fft(data)
-
-    # Encode the message into the phase information of the audio signal
-    for i in range(len(binary_message)):
-        bit = int(binary_message[i])
-        if bit == 0:
-            data_freq[i] = abs(data_freq[i])
-        else:
-            data_freq[i] = -1 * abs(data_freq[i])
-
-    # Convert the modified signal back to the time domain
-    data_mod = np.fft.ifft(data_freq)
-
-    # Save the modified audio signal to a new file
-    output_file = 'Phase_encoded.wav'
-    wavfile.write(output_file, rate, np.real(data_mod).astype(np.int16))
-
-    print('Message encoded successfully to', output_file)
-
-encode_phase("trial.wav","Hello this is ashish and This is a trial")
+    data, rate = librosa.load(audio_file, sr=None, mono=True)
+    
+    # Convert message to bytes and then to numpy array of floats
+    encoded_message = message.encode('utf-8')
+    encoded_message = np.frombuffer(encoded_message, dtype=np.uint8)
+    encoded_message = np.unpackbits(encoded_message)
+    encoded_message = np.where(encoded_message == 0, -1, encoded_message)
+    
+    # Calculate spectrogram of audio signal
+    _, _, spec = plt.specgram(data, Fs=rate, NFFT=1024, noverlap=900)
+    phase_data = np.angle(spec)
+    
+    # Embed message into phase of spectrogram
+    alpha = 1000
+    phase_data += alpha * encoded_message[:, np.newaxis]
+    
+    # Synthesize audio signal from modified spectrogram
+    modified_spec = np.abs(spec) * np.exp(1j * phase_data)
+    modified_data = librosa.istft(modified_spec, win_length=1024, hop_length=900)
+    
+    return modified_data, rate
 
 import numpy as np
 

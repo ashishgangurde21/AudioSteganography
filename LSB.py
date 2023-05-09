@@ -1,63 +1,79 @@
 import wave
 
-def encode_audio(audio_file, message):
-    # Open wave audio file
-    audio = wave.open(audio_file, mode='rb')
-    
-    # Read audio data
-    frame_bytes = bytearray(list(audio.readframes(audio.getnframes())))
+def encode_LSB(audio_file, message):
+    # Read the audio file as binary data
+    with wave.open(audio_file, 'rb') as audio:
+        # Get the number of audio frames and channels
+        num_frames = audio.getnframes()
+        num_channels = audio.getnchannels()
+        
+        # Convert the message to binary
+        binary_message = ''.join(format(ord(c), '08b') for c in message)
+        
+        # Check that the message will fit in the audio file
+        max_bytes = (num_frames * num_channels) // 8
+        if len(binary_message) > max_bytes:
+            raise ValueError('Message is too large to encode in audio file')
+        
+        # Read the audio frames and embed the message in the LSB of each sample
+        frames = audio.readframes(num_frames)
+        new_frames = bytearray(frames)
+        message_index = 0
+        for i in range(len(new_frames)):
+            if message_index < len(binary_message):
+                # Convert the audio sample to binary and clear the LSB
+                sample = int.from_bytes(bytes([new_frames[i]]), byteorder='little')
+                sample &= ~1
+                
+                # Embed the next bit of the message in the LSB
+                bit = int(binary_message[message_index])
+                sample |= bit
+                
+                # Convert the sample back to bytes and update the audio frame
+                new_frames[i] = sample.to_bytes(1, byteorder='little')[0]
+                
+                # Move to the next bit of the message
+                message_index += 1
+        
+        # Write the new audio frames to a new file
+        with wave.open('encoded.wav', 'wb') as output:
+            output.setparams(audio.getparams())
+            output.writeframes(new_frames)
 
-    # Append null bytes to fill last frame
-    message += '0' * (len(frame_bytes) - (len(message) * 8))
+        #Printing the Completion of the Function
+        print("The process has been completed")
 
-    # Convert message to binary
-    message_bytes = ''.join([format(ord(i), "08b") for i in message])
+def decode_LSB(audio_file):
+    # Read the audio file as binary data
+    with wave.open(audio_file, 'rb') as audio:
+        # Get the number of audio frames and channels
+        num_frames = audio.getnframes()
+        num_channels = audio.getnchannels()
+        
+        # Read the audio frames and extract the message from the LSB of each sample
+        frames = audio.readframes(num_frames)
+        binary_message = ''
+        for i in range(len(frames)):
+            # Convert the audio sample to binary and extract the LSB
+            sample = int.from_bytes(bytes([frames[i]]), byteorder='little')
+            bit = sample & 1
+            
+            # Append the extracted bit to the message
+            binary_message += str(bit)
+            
+            # Check if we've reached the end of the message
+            if binary_message[-16:] == '0000000000000000':
+                break
+        
+        # Convert the binary message to ASCII
+        message = ''
+        for i in range(0, len(binary_message), 8):
+            byte = binary_message[i:i+8]
+            message += chr(int(byte, 2))
+            
+            # Check if we've reached the end of the message
+            if message[-1] == '\x00':
+                break
+        
+        return message
 
-    # Hide message in LSB of audio data
-    j = 0
-    for i in range(0, len(frame_bytes), 2):
-        if j < len(message_bytes):
-            frame_bytes[i] = int(str(frame_bytes[i])[:-1] + message_bytes[j], 2)
-            frame_bytes[i+1] = int(str(frame_bytes[i+1])[:-1] + message_bytes[j+1], 2)
-            j += 2
-
-    # Write the new audio data
-    output_audio = wave.open('encoded_audio.wav', 'wb')
-    output_audio.setparams(audio.getparams())
-    output_audio.writeframes(frame_bytes)
-    
-    # Close the files
-    audio.close()
-    output_audio.close()
-
-    #Printing the Completion of the Function
-    print("The process has been completed")
-
-def decode_audio(audio_file):
-    # Open wave audio file
-    audio = wave.open(audio_file, mode='rb')
-    
-    # Read audio data
-    frame_bytes = bytearray(list(audio.readframes(audio.getnframes())))
-
-    # Extract LSB of audio data to get message
-    message_bits = ''
-    for i in range(0, len(frame_bytes), 2):
-        byte = frame_bytes[i]
-        message_bits += bin(byte)[-1]
-        byte = frame_bytes[i+1]
-        message_bits += bin(byte)[-1]
-
-    # Convert message from binary to string
-    message = ''
-    for i in range(0, len(message_bits), 8):
-        byte = message_bits[i:i+8]
-        message += chr(int(byte, 2))
-        if message[-1] == '\0':
-            break
-    
-    # Close the file
-    audio.close()
-
-    # Return the decoded message
-    return message
