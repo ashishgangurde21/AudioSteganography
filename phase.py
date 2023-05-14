@@ -1,64 +1,79 @@
 import numpy as np
-import scipy.io.wavfile as wavfile
-import librosa
+from scipy.io import wavfile
 
-import numpy as np
 
-def encode_phase(audio_file, message):
-    data, rate = librosa.load(audio_file, sr=None, mono=True)
+def read_audio_file(file_path):
+    # Read the audio file and return the sample rate and audio data as a numpy array
+    sample_rate, audio_data = wavfile.read(file_path)
+    if audio_data.dtype == np.int16:
+        audio_data = audio_data.astype(np.float32) / np.iinfo(np.int16).max
+    return sample_rate, audio_data
+
+
+def write_audio_file(file_path, sample_rate, audio_data):
+    # Convert the audio data to int16 format and write it to the output file
+    audio_data = np.int16(audio_data * np.iinfo(np.int16).max)
+    wavfile.write(file_path, sample_rate, audio_data)
+
+
+def encode(message, audio_data, alpha=0.5):
+    # Convert message to binary
+    binary_message = ''.join(format(ord(c), '08b') for c in message)
     
-    # Convert message to bytes and then to numpy array of floats
-    encoded_message = message.encode('utf-8')
-    encoded_message = np.frombuffer(encoded_message, dtype=np.uint8)
-    encoded_message = np.unpackbits(encoded_message)
-    encoded_message = np.where(encoded_message == 0, -1, encoded_message)
+    # Repeat audio data as many times as needed to accommodate message
+    audio_data = np.tile(audio_data, int(np.ceil(len(binary_message) / len(audio_data))))
     
-    # Calculate spectrogram of audio signal
-    _, _, spec = plt.specgram(data, Fs=rate, NFFT=1024, noverlap=900)
-    phase_data = np.angle(spec)
+    # Convert binary message to array of 1s and -1s
+    binary_array = np.array([int(x)*2-1 for x in binary_message])
     
-    # Embed message into phase of spectrogram
-    alpha = 1000
-    phase_data += alpha * encoded_message[:, np.newaxis]
+    # Generate phase shifts based on binary array
+    phase_shift = alpha * np.pi * binary_array
     
-    # Synthesize audio signal from modified spectrogram
-    modified_spec = np.abs(spec) * np.exp(1j * phase_data)
-    modified_data = librosa.istft(modified_spec, win_length=1024, hop_length=900)
+    # Apply phase shifts to audio data
+    modified_audio_data = audio_data * np.exp(1j * phase_shift[:len(audio_data)])
     
-    return modified_data, rate
+    return modified_audio_data
 
-import numpy as np
 
-def decode_phase(audio_file):
-    # Load audio file
-    data, rate = librosa.load(audio_file, sr=None, mono=True)
+def decode_message(audio_data, alpha):
+    # Extract the phase shift from the audio data
+    phase_shift = np.angle(audio_data)
 
-    # Compute spectrogram
-    spec = np.abs(librosa.stft(data))
+    # Convert the phase shift to binary values
+    binary_message = ''.join(str(int(np.round((p / (alpha * np.pi) + 1) / 2))) for p in phase_shift)
 
-    # Compute phase
-    phase = np.angle(librosa.stft(data))
-
-    # Find the maximum and minimum phase values
-    max_phase = np.max(phase)
-    min_phase = np.min(phase)
-
-    # Quantize the phase values to 8 bits
-    qphase = np.round(((phase - min_phase) / (max_phase - min_phase)) * 255)
-
-    # Convert the phase values to integers
-    iphase = qphase.astype(int)
-
-    # Convert the integers to binary strings
-    bphase = np.array([np.binary_repr(i, width=8) for i in iphase.flatten()])
-
-    # Convert the binary strings to a single binary string
-    binstr = "".join(bphase)
-
-    # Convert the binary string to a byte string
-    bytestr = int(binstr, 2).to_bytes(len(binstr) // 8, byteorder='big')
-
-    # Convert the byte string to the original message
-    message = bytestr.decode('utf-8')
+    # Convert the binary message to ASCII characters
+    message = ''.join(chr(int(binary_message[i:i + 8], 2)) for i in range(0, len(binary_message), 8))
 
     return message
+
+
+if __name__ == '__main__':
+    # Define the input and output file paths
+    input_file_path = 'trial.wav'
+    output_file_path = 'output.wav'
+
+    # Define the message to encode
+    message = 'Hello, world!'
+
+    # Define the alpha parameter for phase modulation
+    alpha = 0.1
+
+    # Read the input audio file
+    sample_rate, audio_data = read_audio_file(input_file_path)
+
+    # Encode the message in the audio data
+    modified_audio_data = encode_message(audio_data, message, alpha)
+
+    # Write the modified audio data to the output file
+    write_audio_file(output_file_path, sample_rate, modified_audio_data.real)
+
+    # Read the modified audio data from the output file
+    _, modified_audio_data = read_audio_file(output_file_path)
+
+    # Decode the message from the modified audio data
+    decoded_message = decode_message(modified_audio_data, alpha)
+
+    # Print the original message and the decoded message
+    print('Original message:', message)
+    print('Decoded message:', decoded_message)

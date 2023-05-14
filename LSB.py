@@ -74,6 +74,6 @@ def decode_LSB(audio_file):
             # Check if we've reached the end of the message
             if message[-1] == '\x00':
                 break
-        
+        print(message)
         return message
 

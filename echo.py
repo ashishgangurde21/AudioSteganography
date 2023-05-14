@@ -1,48 +1,55 @@
 import numpy as np
-import scipy.io.wavfile as wav
+import wave
 
-def encode():
+def encode(message, audio_file, output_file, delay=0.1, gain=0.5):
     # Load audio file
-    rate, audio_data = wav.read('trial.wav')
-    print("Hello")
-    # Define message to hide
-    message = 'This is a hidden message.'
+    with wave.open(audio_file, 'rb') as f:
+        params = f.getparams()
+        audio_data = np.frombuffer(f.readframes(params[3]), dtype=np.int16)
 
-    # Define echo parameters
-    delay = 2000  # delay in samples
-    amplitude = 0.1  # amplitude of echo
+    # Generate binary representation of message
+    binary_message = ''.join(format(ord(char), '08b') for char in message)
+    binary_array = np.array(list(map(int, binary_message)))
 
-    # Encode message in echo
-    echo = np.zeros_like(audio_data)
-    for i, sample in enumerate(audio_data):
-        if i < delay:
-            echo[i] = sample
-        else:
-            echo[i] = sample + amplitude * audio_data[i - delay]
-            if i == delay + len(message) * 8:
-                break  # End of message
+    # Add echo to audio data
+    framerate = params[2]
+    delay_samples = int(delay * framerate)
+    delayed_audio_data = np.concatenate((np.zeros(delay_samples), audio_data))
+    modified_audio_data = audio_data + gain * delayed_audio_data[:len(audio_data)] * binary_array[:, np.newaxis]
 
-    # Save audio file with hidden message
-    wav.write('audio_with_hidden_message.wav', rate, audio_data + echo)
+    # Save modified audio file
+    with wave.open(output_file, 'wb') as f:
+        f.setparams(params)
+        f.writeframes(modified_audio_data.astype(np.int16).tobytes())
 
-def decode():
-    # Load audio file with hidden message
-    rate, audio_data = wav.read('audio_with_hidden_message.wav')
+def decode(audio_file, delay=0.1, threshold=0.1):
+    # Load audio file
+    with wave.open(audio_file, 'rb') as f:
+        params = f.getparams()
+        audio_data = np.frombuffer(f.readframes(params[3]), dtype=np.int16)
 
-    # Define echo parameters
-    delay = 2000  # delay in samples
-    amplitude = 0.1  # amplitude of echo
+    # Remove echo from audio data
+    framerate = params[2]
+    delay_samples = int(delay * framerate)
+    undelayed_audio_data = audio_data[delay_samples:]
+    corr = np.correlate(undelayed_audio_data, audio_data[:len(undelayed_audio_data)], mode='same')
+    binary_array = (corr > threshold).astype(int)
 
-    # Decode message from echo
-    echo = audio_data - np.roll(audio_data, delay) * amplitude
-    binary_message = []
-    for i, sample in enumerate(echo):
-        if i >= delay and i < delay + len('This is a hidden message.') * 8:
-            bit = int(round(sample / amplitude))
-            binary_message.append(bit)
-    message = ''.join(chr(int(''.join(map(str, binary_message[i:i+8])), 2)) for i in range(0, len(binary_message), 8))
+    # Convert binary array to string message
+    binary_message = ''.join(map(str, binary_array))
+    message = ''
+    for i in range(0, len(binary_message), 8):
+        message += chr(int(binary_message[i:i+8], 2))
 
-    print(message)
+    return message
 
-encode()
-decode()
+
+# Encode message in input audio file and save to output audio file
+message = 'Hello, world!'
+input_file = 'trial.wav'
+output_file = 'output.wav'
+encode(message, input_file, output_file)
+
+# # Decode message from output audio file
+# decoded_message = decode(output_file, len(message) * 8)
+# print(decoded_message)  # Output: 'Hello, world!'
