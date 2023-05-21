@@ -47,38 +47,38 @@ def compare_images(image1_path, image2_path):
 
     # Save the composite image
     composite_image.save("compare_images.png")
+    # Load the images
+    img1 = Image.open('image.png')
+    img2 = Image.open('hello.png')
 
-compare_images("image.png", "hello.png")
+    # Convert the images to grayscale
+    img1 = img1.convert('L')
+    img2 = img2.convert('L')
 
-# Load the images
-img1 = Image.open('image.png')
-img2 = Image.open('hello.png')
+    # Convert the images to arrays
+    arr1 = np.array(img1)
+    arr2 = np.array(img2)
 
-# Convert the images to grayscale
-img1 = img1.convert('L')
-img2 = img2.convert('L')
+    # Compute the absolute difference between the arrays
+    diff = np.abs(arr1 - arr2)
 
-# Convert the images to arrays
-arr1 = np.array(img1)
-arr2 = np.array(img2)
+    # Plot the original images and the difference
+    fig, ax = plt.subplots(1, 3, figsize=(10, 5))
+    ax[0].imshow(img1, cmap='gray')
+    ax[0].set_title('Image 1')
+    ax[1].imshow(img2, cmap='gray')
+    ax[1].set_title('Image 2')
+    ax[2].imshow(diff, cmap='gray')
+    ax[2].set_title('Difference')
+    plt.show()
 
-# Compute the absolute difference between the arrays
-diff = np.abs(arr1 - arr2)
+    # # Plot a histogram of the pixel-wise difference
+    # fig, ax = plt.subplots()
+    # ax.hist(diff.ravel(), bins=256)
+    # ax.set_title("Pixel-wise Difference Histogram")
+    # ax.set_xlabel("Pixel Difference")
+    # ax.set_ylabel("Frequency")
+    # plt.show()
 
-# Plot the original images and the difference
-fig, ax = plt.subplots(1, 3, figsize=(10, 5))
-ax[0].imshow(img1, cmap='gray')
-ax[0].set_title('Image 1')
-ax[1].imshow(img2, cmap='gray')
-ax[1].set_title('Image 2')
-ax[2].imshow(diff, cmap='gray')
-ax[2].set_title('Difference')
-plt.show()
 
-# Plot a histogram of the pixel-wise difference
-fig, ax = plt.subplots()
-ax.hist(diff.ravel(), bins=256)
-ax.set_title("Pixel-wise Difference Histogram")
-ax.set_xlabel("Pixel Difference")
-ax.set_ylabel("Frequency")
-plt.show()
+

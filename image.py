@@ -14,7 +14,7 @@ def data2binary(data):
 # hide data in given img
 
 def hidedata(img, data):
-    data += "$$"                                   #'$$'--> secrete key
+    data += "$$"                                   
     d_index = 0
     b_data = data2binary(data)
     len_data = len(b_data)
@@ -38,20 +38,19 @@ def hidedata(img, data):
     return img
 
 
-def encode():
-    img_name = input("\nEnter image name:")
+def encode_image(inputName,odata):
+    img_name = inputName
     image = cv2.imread(img_name)
     img = Image.open(img_name, 'r')
     w, h = img.size
-    data = input("\Eenter message:")
+    data = odata
     if len(data) == 0:
         raise ValueError("Empty data")
-    enc_img = input("\nenter encoded image name:")
+    enc_img ="encoded_image.png"
     enc_data = hidedata(image, data)
     cv2.imwrite(enc_img, enc_data)
     img1 = Image.open(enc_img, 'r')
     img1 = img1.resize((w, h),Image.ANTIALIAS)
-    # optimize with 65% quality
     if w != h:
         img1.save(enc_img, optimize=True, quality=65)
     else:
@@ -78,27 +77,12 @@ def find_data(img):
     return readable_data[:-2]
 
 
-def decode():
-    img_name = input("\nEnter Image name : ")
+def decode_image(name):
+    img_name = name
     image = cv2.imread(img_name)
     img=Image.open(img_name,'r')
     msg = find_data(image)
     return msg
 
 
-def stegnography():
-    x = 1
-    while x != 0:
-       print('''\nImage stegnography
-       1.encode
-       2.decode''')
-       u_in = int(input("\n enter your choice:"))
-       if u_in == 1:
-           encode()
-       else:
-           ans = decode()
-           print("\n your message:"+ans)
-       x = int(input("\nenter 1 for continue otherwise 0:"))
 
-
-stegnography()

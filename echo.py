@@ -1,7 +1,7 @@
 import numpy as np
 import wave
 
-def encode(message, audio_file, output_file, delay=0.1, gain=0.5):
+def encode_echo(message, audio_file, output_file, delay=0.1, gain=0.5):
     # Load audio file
     with wave.open(audio_file, 'rb') as f:
         params = f.getparams()
@@ -42,13 +42,6 @@ def decode(audio_file, delay=0.1, threshold=0.1):
         message += chr(int(binary_message[i:i+8], 2))
 
     return message
-
-
-# Encode message in input audio file and save to output audio file
-message = 'Hello, world!'
-input_file = 'trial.wav'
-output_file = 'output.wav'
-encode(message, input_file, output_file)
 
 # # Decode message from output audio file
 # decoded_message = decode(output_file, len(message) * 8)

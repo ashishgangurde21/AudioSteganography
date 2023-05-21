@@ -1,5 +1,5 @@
 import wave
-from lsb import *
+from LSB import *
 from phase import *
 
 encode_LSB('trial.wav', 'Hello This is ashish trying to hide some data')

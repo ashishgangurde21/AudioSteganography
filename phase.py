@@ -16,7 +16,7 @@ def write_audio_file(file_path, sample_rate, audio_data):
     wavfile.write(file_path, sample_rate, audio_data)
 
 
-def encode(message, audio_data, alpha=0.5):
+def encode(audio_data, message, alpha=0.5):
     # Convert message to binary
     binary_message = ''.join(format(ord(c), '08b') for c in message)
     
@@ -29,10 +29,16 @@ def encode(message, audio_data, alpha=0.5):
     # Generate phase shifts based on binary array
     phase_shift = alpha * np.pi * binary_array
     
+    # Reshape phase_shift array to match shape of audio_data
+    phase_shift = np.reshape(phase_shift, audio_data.shape[:-1] + (1,))
+    
     # Apply phase shifts to audio data
-    modified_audio_data = audio_data * np.exp(1j * phase_shift[:len(audio_data)])
+    modified_audio_data = audio_data * np.exp(1j * phase_shift)
     
     return modified_audio_data
+
+
+
 
 
 def decode_message(audio_data, alpha):
@@ -63,7 +69,7 @@ if __name__ == '__main__':
     sample_rate, audio_data = read_audio_file(input_file_path)
 
     # Encode the message in the audio data
-    modified_audio_data = encode_message(audio_data, message, alpha)
+    modified_audio_data = encode(message, audio_data, alpha)
 
     # Write the modified audio data to the output file
     write_audio_file(output_file_path, sample_rate, modified_audio_data.real)
